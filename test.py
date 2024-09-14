@@ -1,70 +1,44 @@
-# import cloudscraper
-# import re
-# from bs4 import BeautifulSoup
-# from flask import Flask
-#
-# app = Flask(__name__)
-#
-# url = "https://in.bookmyshow.com/buytickets/saripodhaa-sanivaaram-vizag-visakhapatnam/movie-viza-ET00388631-MT/20240914"
-#
-# scraper = cloudscraper.create_scraper()
-#
-# # Custom headers to mimic a browser request
-# headers = {
-#     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-#     "Referer": "https://in.bookmyshow.com/",
-#     "Accept-Language": "en-US,en;q=0.9"
-# }
-#
-# # Send the request with headers
-# response = scraper.get(url, headers=headers)
-#
-# if response.status_code == 200:
-#     print("Request successful!")
-#
-#     # Parse the HTML content
-#     soup = BeautifulSoup(response.content, "html.parser")
-#
-#     # Extract the title
-#     title = soup.find("title").text
-#     movie_NamesArray = soup.find_all("a", class_=re.compile("__venue-name", re.I))
-#     theatre_names = []
-#     for i in movie_NamesArray:
-#         theatre_names.append(i.get_text().strip())
-#     print("Title:", title)
-#     for i in theatre_names:
-#         if "inox" in i.lower():
-#             print("yes")
-#             break
-#     print("Theatre:", theatre_names)
-#
-# else:
-#     print("Request failed. Status code:", response.status_code)
-#
-#
-# @app.route("/")
-# def hello_world():
-#     print(response.status_code)
-#     return f'{response}'
-#
-#
-# if __name__ == "__main__":
-#     app.run(debug=False)
-
-
 from flask import Flask, request, render_template_string
+import firebase_admin
+from firebase_admin import credentials, messaging
 import cloudscraper
 import re
 from bs4 import BeautifulSoup
 
 app = Flask(__name__)
 
+# Initialize Firebase Admin SDK
+cred = credentials.Certificate('config/firebase_key.json')
+firebase_admin.initialize_app(cred)
+
+
+def send_notification(title, body):
+    # Define the message payload
+    message = messaging.Message(
+        notification=messaging.Notification(
+            title="High Priority Notification",
+            body="This is  a high-priority notification!",
+        ),
+        android=messaging.AndroidConfig(
+            priority="high",  # Set the priority to high
+            notification=messaging.AndroidNotification(
+                sound="default",  # Set the sound to default
+                click_action="FLUTTER_NOTIFICATION_CLICK",  # Optional action when clicked
+            ),
+        ),
+        topic="theater_updates",  # Send to a topic, token, or condition
+    )
+
+    # Send the message
+    response = messaging.send(message)
+    print(f'Successfully  sent message: {response}')
+
 
 @app.route("/", methods=["GET", "POST"])
 def index():
-
     # Default message
     message = ""
+    # send_notification("aaa", "bb b")
 
     # Check if the form has been submitted
     if request.method == "POST":
@@ -105,9 +79,12 @@ def index():
             message += f"<br>Title: {title}<br>"
             message += f"Theatres: {', '.join(theatre_names)}<br>"
             if searched_theater_found:
-                message += "Yes, "+searched_theater+" theatre found!"
+                message += "Yes, " + searched_theater + " theatre found!"
+                send_notification("" + searched_theater + " Theatre Found ", "ehjgsjf")
+                # send_notification(
+                #     "" + searched_theater + " Theatre Found , " + searched_theater + " is available for the movie '{" + title + "}'.")
             else:
-                message += "No "+searched_theater+" theatre NOT found."
+                message += "No " + searched_theater + " theatre NOT found."
         else:
             message = f"Request failed. Status code: {response.status_code}"
 
@@ -130,4 +107,4 @@ def index():
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(debug=False)
